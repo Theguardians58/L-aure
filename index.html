@@ -310,31 +310,401 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => {
 
-            const SUPABASE_URL = 'https://zxsslevvtbxbeivgwhow.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4c3NsZXZ2dGJ4YmVpdmd3aG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwNzc1MTksImV4cCI6MjA3MzY1MzUxOX0.eMtlN3NPVR__zPGQKkCH_Na8ca2QvQMPSrDRcSIaN6k';
+        const SUPABASE_URL = 'https://zxsslevvtbxbeivgwhow.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4c3NsZXZ2dGJ4YmVpdmd3aG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwNzc1MTksImV4cCI6MjA3MzY1MzUxOX0.eMtlN3NPVR__zPGQKkCH_Na8ca2QvQMPSrDRcSIaN6k';
 
-            let supabaseClient;
-            try {
-                // The supabase-js script creates a global 'supabase' object.
-                // We use its createClient method and store the new client instance.
-                const { createClient } = supabase;
-                supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } catch (e) {
-                console.warn("Supabase client could not be initialized. App may run in offline mode.");
+        let supabaseClient;
+        // --- CORRECTED INITIALIZATION ---
+        // This is a more direct and robust way to create the client.
+        if (typeof supabase !== 'undefined') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } else {
+            console.warn("Supabase script not loaded. App may run in offline mode.");
+        }
+
+        let allProducts = [];
+        let userWishlist = [];
+        let cart = [];
+        let currentUser = null;
+
+        const loader = document.getElementById('loader');
+
+        const productGrid = document.getElementById('product-grid');
+        const categoryFilter = document.getElementById('category-filter');
+        const colorFilter = document.getElementById('color-filter');
+        const sizeFilter = document.getElementById('size-filter');
+        const priceFilter = document.getElementById('price-filter');
+        const priceValue = document.getElementById('price-value');
+        
+        const cartButton = document.getElementById('cart-button');
+        const closeCartButton = document.getElementById('close-cart-button');
+        const cartModal = document.getElementById('cart-modal');
+        const cartSidebar = document.getElementById('cart-sidebar');
+        const cartCount = document.getElementById('cart-count');
+        const cartItemsContainer = document.getElementById('cart-items');
+        const cartSubtotal = document.getElementById('cart-subtotal');
+        const checkoutBtn = document.getElementById('checkout-btn');
+
+        const toastNotification = document.getElementById('toast-notification');
+
+        const authContainer = document.getElementById('auth-container');
+        const authModal = document.getElementById('auth-modal');
+        const closeAuthModalBtn = document.getElementById('close-auth-modal');
+        const loginView = document.getElementById('login-view');
+        const signupView = document.getElementById('signup-view');
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const showSignup = document.getElementById('show-signup');
+        const showLogin = document.getElementById('show-login');
+        const authError = document.getElementById('auth-error');
+
+        const accountModal = document.getElementById('account-modal');
+        const closeAccountModal = document.getElementById('close-account-modal');
+        const userEmail = document.getElementById('user-email');
+        const wishlistItemsContainer = document.getElementById('wishlist-items');
+        const logoutButton = document.getElementById('logout-button');
+        
+        const mockProducts = [
+            { id: 1, name: 'Lace Balconette Bra', price: 65, category: 'Bras', color: 'Black', size: 'M', image: 'https://placehold.co/400x500/1E1E1E/FFFFFF?text=Lace+Bra' },
+            { id: 2, name: 'Silk Thong', price: 25, category: 'Panties', color: 'Black', size: 'S', image: 'https://placehold.co/400x500/1E1E1E/FFFFFF?text=Silk+Thong' },
+            { id: 3, name: 'Rose Lace Set', price: 90, category: 'Sets', color: 'Red', size: 'S', image: 'https://placehold.co/400x500/990000/FFFFFF?text=Rose+Set' },
+            { id: 4, name: 'Everyday Cotton Brief', price: 20, category: 'Panties', color: 'Nude', size: 'L', image: 'https://placehold.co/400x500/D3B8A3/FFFFFF?text=Cotton+Brief' },
+            { id: 5, name: 'Satin Chemise', price: 85, category: 'Sleepwear', color: 'White', size: 'M', image: 'https://placehold.co/400x500/FFFFFF/333333?text=Satin+Chemise' },
+            { id: 6, name: 'T-Shirt Bra', price: 55, category: 'Bras', color: 'Nude', size: 'L', image: 'https://placehold.co/400x500/D3B8A3/FFFFFF?text=T-Shirt+Bra' }
+        ];
+        
+        async function fetchProducts() {
+            if (!supabaseClient) {
+                console.log("Offline mode: using mock products.");
+                return mockProducts;
+            }
+            const { data, error } = await supabaseClient.from('products').select('*');
+            if (error) {
+                console.error('Error fetching products:', error);
+                showToast('Could not fetch products.', 'error');
+                return mockProducts; 
+            }
+            return data;
+        }
+
+        function renderProducts(productsToRender) {
+            productGrid.innerHTML = '';
+            if (productsToRender.length === 0) {
+                productGrid.innerHTML = `<p class="col-span-full text-center text-gray-500">No products match your criteria.</p>`;
+                return;
+            }
+            productsToRender.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'bg-white rounded-lg shadow-sm overflow-hidden group';
+                const isWishlisted = userWishlist.some(item => item.product_id === product.id);
+                productCard.innerHTML = `
+                    <div class="relative">
+                        <img src="${product.image}" alt="${product.name}" class="w-full h-96 object-cover">
+                        <button data-id="${product.id}" class="wishlist-heart absolute top-3 right-3 text-2xl text-white drop-shadow-lg ${isWishlisted ? 'active' : ''}">
+                            ${isWishlisted ? '♥' : '♡'}
+                        </button>
+                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
+                            <button data-id="${product.id}" class="add-to-cart-btn bg-[#C4A484] text-white py-2 px-6 rounded-full opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">Add to Cart</button>
+                        </div>
+                    </div>
+                    <div class="p-4 text-center">
+                        <h3 class="text-lg font-medium">${product.name}</h3>
+                        <p class="text-[#C4A484] font-bold mt-1">$${product.price.toFixed(2)}</p>
+                    </div>
+                `;
+                productGrid.appendChild(productCard);
+            });
+        }
+
+        function applyFilters() {
+            const category = categoryFilter.value;
+            const color = colorFilter.value;
+            const size = sizeFilter.value;
+            const maxPrice = parseFloat(priceFilter.value);
+            priceValue.textContent = maxPrice;
+
+            let filteredProducts = allProducts.filter(product => 
+                (category === 'all' || product.category === category) &&
+                (color === 'all' || product.color === color) &&
+                (size === 'all' || product.size === size) &&
+                (product.price <= maxPrice)
+            );
+            renderProducts(filteredProducts);
+        }
+
+        function updateCartUI() {
+            cartItemsContainer.innerHTML = '';
+            if (cart.length === 0) {
+                cartItemsContainer.innerHTML = `<p class="text-gray-500">Your cart is empty.</p>`;
+            } else {
+                cart.forEach(item => {
+                    const product = allProducts.find(p => p.id === item.product_id);
+                    if (!product) return;
+                    const cartItemEl = document.createElement('div');
+                    cartItemEl.className = 'flex justify-between items-center mb-4 cart-item-enter';
+                    cartItemEl.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <img src="${product.image}" alt="${product.name}" class="w-20 h-24 object-cover rounded-md">
+                            <div>
+                                <h4 class="font-medium">${product.name}</h4>
+                                <p class="text-sm text-gray-600">$${product.price.toFixed(2)}</p>
+                                <div class="flex items-center mt-2">
+                                    <button data-id="${product.id}" class="quantity-btn decrease-qty">-</button>
+                                    <span class="px-2">${item.quantity}</span>
+                                    <button data-id="${product.id}" class="quantity-btn increase-qty">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button data-id="${product.id}" class="remove-from-cart text-red-500 hover:text-red-700 font-bold text-2xl">&times;</button>
+                    `;
+                    cartItemsContainer.appendChild(cartItemEl);
+                });
+            }
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            cartCount.textContent = totalItems;
+            const subtotal = cart.reduce((sum, item) => {
+                const product = allProducts.find(p => p.id === item.product_id);
+                return sum + (product ? product.price * item.quantity : 0);
+            }, 0);
+            cartSubtotal.textContent = `$${subtotal.toFixed(2)}`;
+        }
+
+        async function syncCart(cartToSync) {
+            if (!currentUser || !supabaseClient) return;
+            const { error: deleteError } = await supabaseClient.from('carts').delete().match({ user_id: currentUser.id });
+            if (deleteError) console.error("Error clearing old cart:", deleteError);
+            if (cartToSync.length > 0) {
+                const { error: insertError } = await supabaseClient.from('carts').insert(cartToSync);
+                if (insertError) console.error("Error syncing cart:", insertError);
+            }
+        }
+        
+        async function fetchUserCart() {
+            if (!currentUser || !supabaseClient) {
+                cart = JSON.parse(localStorage.getItem('guestCart')) || [];
+                updateCartUI();
+                return;
+            }
+            const { data, error } = await supabaseClient.from('carts').select('*').eq('user_id', currentUser.id);
+            if (error) {
+                console.error("Error fetching cart:", error);
+                cart = [];
+            } else {
+                cart = data;
+            }
+            updateCartUI();
+        }
+
+        async function addToCart(productId, quantity = 1) {
+            const existingItem = cart.find(item => item.product_id === productId);
+            if (existingItem) {
+                existingItem.quantity += quantity;
+            } else {
+                const newItem = {
+                    user_id: currentUser ? currentUser.id : null,
+                    product_id: productId,
+                    quantity: quantity
+                };
+                cart.push(newItem);
             }
 
-            let allProducts = [];
-            let userWishlist = [];
-            let cart = [];
-            let currentUser = null;
+            if (currentUser && supabaseClient) {
+                const { error } = await supabaseClient.from('carts').upsert({
+                    user_id: currentUser.id,
+                    product_id: productId,
+                    quantity: existingItem ? existingItem.quantity : 1
+                }, { onConflict: 'user_id, product_id' });
+                if (error) console.error("Error adding to cart:", error);
+            } else {
+                localStorage.setItem('guestCart', JSON.stringify(cart));
+            }
+            updateCartUI();
+            showToast('Item added to cart!');
+        }
 
-            const loader = document.getElementById('loader');
+        async function updateCartQuantity(productId, newQuantity) {
+             const item = cart.find(item => item.product_id === productId);
+             if (!item) return;
+             item.quantity = newQuantity;
 
-            const productGrid = document.getElementById('product-grid');
-            const categoryFilter = document.getElementById('category-filter');
-            const colorFilter = document.getElementById('color-filter');
-            const sizeFilter = document.getElementById('size-filter');
-            const priceFilter = document.getElementById('price-filter');
-            const priceValue 
+             if (currentUser && supabaseClient) {
+                 const { error } = await supabaseClient.from('carts').update({ quantity: newQuantity }).match({ user_id: currentUser.id, product_id: productId });
+                 if (error) console.error('Error updating cart:', error);
+             } else {
+                 localStorage.setItem('guestCart', JSON.stringify(cart));
+             }
+             updateCartUI();
+        }
+        
+        async function removeFromCart(productId) {
+            cart = cart.filter(item => item.product_id !== productId);
+             if (currentUser && supabaseClient) {
+                 const { error } = await supabaseClient.from('carts').delete().match({ user_id: currentUser.id, product_id: productId });
+                 if(error) console.error('Error removing from cart:', error);
+             } else {
+                 localStorage.setItem('guestCart', JSON.stringify(cart));
+             }
+             updateCartUI();
+        }
+        
+        async function fetchUserWishlist() {
+             if (!currentUser || !supabaseClient) {
+                 userWishlist = [];
+                 return;
+             }
+            const { data, error } = await supabaseClient.from('wishlists').select('*').eq('user_id', currentUser.id);
+            if (error) {
+                console.error("Error fetching wishlist:", error);
+                userWishlist = [];
+            } else {
+                userWishlist = data;
+            }
+            applyFilters();
+            updateWishlistUI();
+        }
+
+        async function toggleWishlist(productId) {
+             if (!currentUser || !supabaseClient) {
+                showToast('Please log in to use the wishlist.', 'error');
+                openAuthModal();
+                return;
+            }
+
+            const isInWishlist = userWishlist.some(item => item.product_id === productId);
+            if (isInWishlist) {
+                const { error } = await supabaseClient.from('wishlists').delete().match({ user_id: currentUser.id, product_id: productId });
+                if (error) console.error("Error removing from wishlist:", error);
+                else userWishlist = userWishlist.filter(item => item.product_id !== productId);
+            } else {
+                const { data, error } = await supabaseClient.from('wishlists').insert({ user_id: currentUser.id, product_id: productId }).select();
+                 if (error) console.error("Error adding to wishlist:", error);
+                 else userWishlist.push(data[0]);
+            }
+            applyFilters();
+            updateWishlistUI();
+        }
+        
+        function updateWishlistUI() {
+            wishlistItemsContainer.innerHTML = '';
+             if (userWishlist.length === 0) {
+                wishlistItemsContainer.innerHTML = `<p>Your wishlist is empty.</p>`;
+            } else {
+                userWishlist.forEach(item => {
+                    const product = allProducts.find(p => p.id === item.product_id);
+                    if (!product) return;
+                    const wishlistItemEl = document.createElement('div');
+                    wishlistItemEl.className = 'flex justify-between items-center wishlist-item-enter';
+                    wishlistItemEl.innerHTML = `
+                         <div class="flex items-center gap-4">
+                            <img src="${product.image}" alt="${product.name}" class="w-16 h-20 object-cover rounded-md">
+                            <div>
+                                <h4 class="font-medium">${product.name}</h4>
+                                <p class="text-sm text-gray-600">$${product.price.toFixed(2)}</p>
+                            </div>
+                        </div>
+                        <button data-id="${product.id}" class="remove-from-wishlist text-red-500 hover:text-red-700 font-bold text-2xl">&times;</button>
+                    `;
+                    wishlistItemsContainer.appendChild(wishlistItemEl);
+                });
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            toastNotification.textContent = message;
+            toastNotification.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 translate-y-10 transition-all duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            toastNotification.classList.remove('opacity-0', 'translate-y-10');
+            setTimeout(() => {
+                toastNotification.classList.add('opacity-0', 'translate-y-10');
+            }, 3000);
+        }
+        
+        function updateAuthUI(user) {
+            if (user) {
+                authContainer.innerHTML = `
+                    <button id="account-btn" class="relative text-2xl" aria-label="Open Account Menu">👤</button>
+                `;
+                document.getElementById('account-btn').addEventListener('click', () => {
+                    userEmail.textContent = user.email;
+                    updateWishlistUI();
+                    accountModal.style.display = 'flex';
+                });
+            } else {
+                authContainer.innerHTML = `
+                    <button id="login-btn" class="bg-[#C4A484] text-white py-2 px-5 rounded-full hover:bg-opacity-80 transition-colors">Login</button>
+                `;
+                document.getElementById('login-btn').addEventListener('click', openAuthModal);
+            }
+        }
+
+        function openAuthModal() {
+            authModal.style.display = 'flex';
+            authError.textContent = '';
+        }
+
+        function closeAuthModal() {
+            authModal.style.display = 'none';
+        }
+        
+        async function mergeCarts() {
+            let guestCart = JSON.parse(localStorage.getItem('guestCart')) || [];
+            if(guestCart.length === 0 || !currentUser) return;
+            
+            const mergedCart = [...cart];
+            guestCart.forEach(guestItem => {
+                const existingItem = mergedCart.find(item => item.product_id === guestItem.product_id);
+                if (existingItem) {
+                    existingItem.quantity = Math.max(existingItem.quantity, guestItem.quantity);
+                } else {
+                     mergedCart.push({
+                        user_id: currentUser.id,
+                        product_id: guestItem.product_id,
+                        quantity: guestItem.quantity
+                    });
+                }
+            });
+            cart = mergedCart;
+            await syncCart(cart);
+            localStorage.removeItem('guestCart');
+            updateCartUI();
+        }
+
+        async function initializeApp() {
+            loader.classList.remove('hidden');
+            allProducts = await fetchProducts();
+            applyFilters();
+            if (supabaseClient) {
+                supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                    currentUser = session ? session.user : null;
+                    updateAuthUI(currentUser);
+                    if (currentUser) {
+                        await mergeCarts(); 
+                        await fetchUserWishlist(); 
+                        await fetchUserCart();
+                    } else {
+                        userWishlist = [];
+                        await fetchUserCart();
+                        applyFilters();
+                    }
+                });
+            } else {
+                updateAuthUI(null);
+                await fetchUserCart();
+            }
+            loader.classList.add('hidden');
+        }
+
+        // Event Listeners
+        productGrid.addEventListener('click', e => {
+            const target = e.target.closest('.add-to-cart-btn');
+            if (target) {
+                addToCart(parseInt(target.dataset.id));
+            }
+            const wishlistHeart = e.target.closest('.wishlist-heart');
+            if (wishlistHeart) {
+                toggleWishlist(parseInt(wishlistHeart.dataset.id));
+            }
+        });
+
+        cartItemsContainer.addEventListener('clic
