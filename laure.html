@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L'Aura Lingerie - Interactive Store</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Elegant Nude & Gold -->
+    <!-- Application Structure Plan: A single-page e-commerce layout with a hero banner, featured items, and a primary interactive shop section. Navigation scrolls to page anchors. The core interaction is a multi-filter system (category, size, color, price) that dynamically updates the product grid without page reloads. A slide-out cart provides a seamless shopping experience. This structure is chosen for its intuitive, fluid user flow, common in modern e-commerce, keeping the user engaged on one page. -->
+    <!-- Visualization & Content Choices: Report Info (Product Catalog) -> Goal (Organize/Select) -> Viz/Presentation (Interactive Filterable Grid) -> Interaction (Filter dropdowns/sliders update grid) -> Justification (Standard, effective e-commerce pattern for user-driven discovery). Report Info (Shopping Cart) -> Goal (Aggregate/Purchase) -> Viz/Presentation (Off-canvas sidebar) -> Interaction (Add/remove/update items) -> Justification (Non-disruptive cart management). No charts are needed. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #FDF8F5;
+            color: #4B3F3A;
+        }
+        h1, h2, h3, .font-display {
+            font-family: 'Playfair Display', serif;
+        }
+        .hero-bg {
+            background-image: url('https://placehold.co/1200x800/EADFD5/4B3F3A?text=L\'Aura');
+            background-size: cover;
+            background-position: center;
+        }
+        .cart-item-enter, .wishlist-item-enter {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .wishlist-heart.active {
+            color: #ef4444; 
+        }
+    </style>
+</head>
+<body>
+
+    <header class="bg-[#FDF8F5]/80 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="#" class="text-3xl font-bold font-display text-[#C4A484]">L'Aura</a>
+            <div class="hidden md:flex space-x-8 items-center">
+                <a href="#shop" class="hover:text-[#C4A484] transition-colors">Shop</a>
+                <a href="#collections" class="hover:text-[#C4A484] transition-colors">Collections</a>
+                <a href="#about" class="hover:text-[#C4A484] transition-colors">About</a>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="cart-button" class="relative">
+                    <span class="text-2xl">🛒</span>
+                    <span id="cart-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
+                </button>
+                <div id="auth-container">
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div id="loader" class="fixed inset-0 bg-white/70 z-50 flex items-center justify-center hidden">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-[#C4A484]"></div>
+        </div>
+        
+        <section id="home" class="hero-bg h-[80vh] flex items-center justify-center text-center text-white">
+            <div class="bg-black/30 p-10 rounded-lg">
+                <h1 class="text-5xl md:text-7xl font-display mb-4">Embrace Your Elegance</h1>
+                <p class="text-lg mb-8 max-w-lg">Discover lingerie that celebrates you. Crafted with passion, designed for comfort.</p>
+                <a href="#shop" class="bg-[#C4A484] text-white py-3 px-8 rounded-full text-lg hover:bg-opacity-80 transition-colors">Shop Now</a>
+            </div>
+        </section>
+
+        <section id="shop" class="py-16 md:py-24">
+            <div class="container mx-auto px-6">
+                <h2 class="text-4xl font-display text-center mb-4">Our Collection</h2>
+                <p class="text-center max-w-2xl mx-auto mb-12">Explore our curated selection of fine lingerie. Use the filters below to find your perfect fit and style.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                    <aside class="md:col-span-1 bg-white/50 p-6 rounded-lg shadow-sm h-fit sticky top-24">
+                        <h3 class="text-2xl font-display mb-6">Filters</h3>
+                        <div class="space-y-6">
+                            <div>
+                                <label for="category-filter" class="block mb-2 font-medium">Category</label>
+                                <select id="category-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#C4A484] focus:border-transparent">
+                                    <option value="all">All</option>
+                                    <option value="Bras">Bras</option>
+                                    <option value="Panties">Panties</option>
+                                    <option value="Sets">Sets</option>
+                                    <option value="Sleepwear">Sleepwear</option>
+                                </select>
+                            </div>
+                             <div>
+                                <label for="color-filter" class="block mb-2 font-medium">Color</label>
+                                <select id="color-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#C4A484] focus:border-transparent">
+                                    <option value="all">All</option>
+                                    <option value="Black">Black</option>
+                                    <option value="White">White</option>
+                                    <option value="Nude">Nude</option>
+                                    <option value="Red">Red</option>
+                                    <option value="Pink">Pink</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="size-filter" class="block mb-2 font-medium">Size</label>
+                                <select id="size-filter" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#C4A484] focus:border-transparent">
+                                    <option value="all">All</option>
+                                    <option value="XS">XS</option>
+                                    <option value="S">S</option>
+                                    <option value="M">M</option>
+                                    <option value="L">L</option>
+                                    <option value="XL">XL</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="price-filter" class="block mb-2 font-medium">Max Price: $<span id="price-value">150</span></label>
+                                <input type="range" id="price-filter" min="20" max="150" value="150" class="w-full accent-[#C4A484]">
+                            </div>
+                        </div>
+                    </aside>
+
+                    <div id="product-grid" class="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="collections" class="bg-white py-16 md:py-24">
+            <div class="container mx-auto px-6">
+                 <h2 class="text-4xl font-display text-center mb-12">Featured Collections</h2>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="relative rounded-lg overflow-hidden h-96 group">
+                        <img src="https://placehold.co/600x400/D3B8A3/4B3F3A?text=Bridal+Bliss" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Bridal Collection">
+                        <div class="absolute inset-0 bg-black/40 flex items-end p-8">
+                            <div class="text-white">
+                                <h3 class="text-3xl font-display mb-2">Bridal Bliss</h3>
+                                <p>Unforgettable pieces for your special day.</p>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="relative rounded-lg overflow-hidden h-96 group">
+                        <img src="https://placehold.co/600x400/C8C8C8/4B3F3A?text=Everyday+Comfort" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="Comfort Collection">
+                        <div class="absolute inset-0 bg-black/40 flex items-end p-8">
+                            <div class="text-white">
+                                <h3 class="text-3xl font-display mb-2">Everyday Comfort</h3>
+                                <p>Luxury you can live in, day in and day out.</p>
+                            </div>
+                        </div>
+                    </div>
+                 </div>
+            </div>
+        </section>
+
+        <section id="about" class="py-16 md:py-24">
+            <div class="container mx-auto px-6 flex flex-col md:flex-row items-center gap-12">
+                <div class="md:w-1/2">
+                    <img src="https://placehold.co/600x700/EADFD5/4B3F3A?text=Our+Story" alt="Brand Story" class="rounded-lg shadow-xl">
+                </div>
+                <div class="md:w-1/2 text-center md:text-left">
+                     <h2 class="text-4xl font-display mb-6">The L'Aura Philosophy</h2>
+                     <p class="mb-4">At L'Aura, we believe that lingerie is more than just an undergarment; it's a form of self-expression, a celebration of the female form, and a source of quiet confidence. Our journey began with a simple mission: to create exquisite pieces that blend timeless elegance with modern comfort.</p>
+                     <p>Each piece is thoughtfully designed and ethically crafted from the finest materials, because you deserve to feel beautiful and comfortable, always. We are dedicated to empowering women to embrace their unique aura.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <footer class="bg-white border-t border-gray-200">
+        <div class="container mx-auto px-6 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-center md:text-left">
+                <div>
+                    <h3 class="font-display text-2xl mb-4">L'Aura</h3>
+                    <p>Celebrating elegance and comfort.</p>
+                </div>
+                 <div>
+                    <h4 class="font-bold mb-4">Quick Links</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#shop" class="hover:text-[#C4A484]">Shop</a></li>
+                        <li><a href="#about" class="hover:text-[#C4A484]">Our Story</a></li>
+                        <li><a href="#" class="hover:text-[#C4A484]">Contact</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-4">Support</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="hover:text-[#C4A484]">Size Guide</a></li>
+                        <li><a href="#" class="hover:text-[#C4A484]">Shipping & Returns</a></li>
+                        <li><a href="#" class="hover:text-[#C4A484]">FAQ</a></li>
+                    </ul>
+                </div>
+                 <div>
+                    <h4 class="font-bold mb-4">Stay Connected</h4>
+                    <p class="mb-2">Join our newsletter for exclusive offers.</p>
+                    <div class="flex">
+                        <input type="email" placeholder="Your Email" class="w-full p-2 border border-gray-300 rounded-l-md">
+                        <button class="bg-[#C4A484] text-white p-2 rounded-r-md">➔</button>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center text-gray-500 mt-12 border-t pt-8">
+                &copy; 2025 L'Aura Lingerie. All Rights Reserved.
+            </div>
+        </div>
+    </footer>
+
+    <div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden transition-opacity duration-300">
+        <div id="cart-sidebar" class="fixed top-0 right-0 h-full w-full max-w-md bg-[#FDF8F5] shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+            <div class="flex justify-between items-center p-6 border-b">
+                <h2 class="text-2xl font-display">Your Cart</h2>
+                <button id="close-cart-button" class="text-2xl">&times;</button>
+            </div>
+            <div id="cart-items" class="flex-grow p-6 overflow-y-auto">
+                <p class="text-gray-500">Your cart is empty.</p>
+            </div>
+            <div class="p-6 border-t bg-white">
+                <div class="flex justify-between items-center mb-4 text-lg font-medium">
+                    <span>Subtotal</span>
+                    <span id="cart-subtotal">$0.00</span>
+                </div>
+                <button id="checkout-btn" class="w-full bg-[#C4A484] text-white py-3 rounded-md text-lg hover:bg-opacity-80 transition-colors">Proceed to Checkout</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="auth-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-[#FDF8F5] p-8 rounded-lg shadow-xl w-full max-w-md relative">
+            <button id="close-auth-modal" class="absolute top-4 right-4 text-2xl">&times;</button>
+            
+            <div id="login-view">
+                <h2 class="text-3xl font-display text-center mb-6">Login</h2>
+                <form id="login-form" class="space-y-4">
+                    <input type="email" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md">
+                    <input type="password" placeholder="Password" required class="w-full p-3 border border-gray-300 rounded-md">
+                    <button type="submit" class="w-full bg-[#C4A484] text-white py-3 rounded-md text-lg">Login</button>
+                </form>
+                <p class="text-center mt-4">
+                    Don't have an account? <a href="#" id="show-signup" class="text-[#C4A484] font-semibold">Sign Up</a>
+                </p>
+            </div>
+
+            <div id="signup-view" class="hidden">
+                 <h2 class="text-3xl font-display text-center mb-6">Sign Up</h2>
+                <form id="signup-form" class="space-y-4">
+                    <input type="email" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md">
+                    <input type="password" placeholder="Password" required class="w-full p-3 border border-gray-300 rounded-md">
+                    <button type="submit" class="w-full bg-[#C4A484] text-white py-3 rounded-md text-lg">Create Account</button>
+                </form>
+                <p class="text-center mt-4">
+                    Already have an account? <a href="#" id="show-login" class="text-[#C4A484] font-semibold">Login</a>
+                </p>
+            </div>
+             <p id="auth-error" class="text-red-500 text-center mt-4 h-4"></p>
+        </div>
+    </div>
+
+    <div id="account-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-[#FDF8F5] p-8 rounded-lg shadow-xl w-full max-w-2xl relative">
+            <button id="close-account-modal" class="absolute top-4 right-4 text-2xl">&times;</button>
+            <h2 class="text-3xl font-display mb-6">My Account</h2>
+            <p class="mb-6">Welcome, <span id="user-email" class="font-semibold"></span></p>
+
+            <div class="border-t pt-6">
+                <h3 class="text-2xl font-display mb-4">My Wishlist</h3>
+                <div id="wishlist-items" class="max-h-64 overflow-y-auto space-y-4">
+                    <p>Your wishlist is empty.</p>
+                </div>
+            </div>
+            
+             <div class="border-t pt-6 mt-6">
+                <h3 class="text-2xl font-display mb-4">Order History</h3>
+                <p>You have no past orders.</p>
+            </div>
+
+            <button id="logout-button" class="mt-8 w-full bg-gray-600 text-white py-3 rounded-md text-lg hover:bg-gray-700">Logout</button>
+        </div>
+    </div>
+    
+    <div id="toast-notification" class="fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 translate-y-10 transition-all duration-300">
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const SUPABASE_URL = 'https://zxsslevvtbxbeivgwhow.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4c3NsZXZ2dGJ4YmVpdmd3aG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwNzc1MTksImV4cCI6MjA3MzY1MzUxOX0.eMtlN3NPVR__zPGQKkCH_Na8ca2QvQMPSrDRcSIaN6k';
+
+            let supabase;
+            try {
+                 supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } catch(e) {
+                console.warn("Supabase credentials not set. App will run in offline mode.");
+            }
+
+            let allProducts = [];
+            let userWishlist = [];
+            let cart = [];
+            let currentUser = null;
+
+            const loader = document.getElementById('loader');
+
+            const productGrid = document.getElementById('product-grid');
+            const categoryFilter = document.getElementById('category-filter');
+            const colorFilter = document.getElementById('color-filter');
+            const sizeFilter = document.getElementById('size-filter');
+            const priceFilter = document.getElementById('price-filter');
+            const priceValue = document.getElementById('price-value');
+            
+            const cartButton = document.getElementById('cart-button');
+            const closeCartButton = document.getElementById('close-cart-button');
+            const cartModal = document.getElementById('cart-modal');
+            const cartSidebar = document.getElementById('cart-sidebar');
+            const cartCount = document.getElementById('cart-count');
+            const cartItemsContainer = document.getElementById('cart-items');
+            const cartSubtotal = document.getElementById('cart-subtotal');
+            const checkoutBtn = document.getElementById('checkout-btn');
+
+            const toastNotification = document.getElementById('toast-notification');
+
+            const authContainer = document.getElementById('auth-container');
+            const authModal = document.getElementById('auth-modal');
+            const closeAuthModalBtn = document.getElementById('close-auth-modal');
+            const loginView = document.getElementById('login-view');
+            const signupView = document.getElementById('signup-view');
+            const loginForm = document.getElementById('login-form');
+            
