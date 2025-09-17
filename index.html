@@ -43,6 +43,17 @@
         .wishlist-heart.active {
             color: #ef4444; 
         }
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
     </style>
 </head>
 <body>
@@ -56,7 +67,7 @@
                 <a href="#about" class="hover:text-[#C4A484] transition-colors">About</a>
             </div>
             <div class="flex items-center space-x-4">
-                <button id="cart-button" class="relative">
+                <button id="cart-button" class="relative" aria-label="Open Shopping Cart">
                     <span class="text-2xl">🛒</span>
                     <span id="cart-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
                 </button>
@@ -237,8 +248,14 @@
             <div id="login-view">
                 <h2 class="text-3xl font-display text-center mb-6">Login</h2>
                 <form id="login-form" class="space-y-4">
-                    <input type="email" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md">
-                    <input type="password" placeholder="Password" required class="w-full p-3 border border-gray-300 rounded-md">
+                    <div>
+                        <label for="login-email" class="sr-only">Email</label>
+                        <input id="login-email" type="email" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="login-password" class="sr-only">Password</label>
+                        <input id="login-password" type="password" placeholder="Password" required class="w-full p-3 border border-gray-300 rounded-md">
+                    </div>
                     <button type="submit" class="w-full bg-[#C4A484] text-white py-3 rounded-md text-lg">Login</button>
                 </form>
                 <p class="text-center mt-4">
@@ -249,8 +266,14 @@
             <div id="signup-view" class="hidden">
                  <h2 class="text-3xl font-display text-center mb-6">Sign Up</h2>
                 <form id="signup-form" class="space-y-4">
-                    <input type="email" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md">
-                    <input type="password" placeholder="Password" required class="w-full p-3 border border-gray-300 rounded-md">
+                    <div>
+                        <label for="signup-email" class="sr-only">Email</label>
+                        <input id="signup-email" type="email" placeholder="Email" required class="w-full p-3 border border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="signup-password" class="sr-only">Password</label>
+                        <input id="signup-password" type="password" placeholder="Password" required class="w-full p-3 border border-gray-300 rounded-md">
+                    </div>
                     <button type="submit" class="w-full bg-[#C4A484] text-white py-3 rounded-md text-lg">Create Account</button>
                 </form>
                 <p class="text-center mt-4">
@@ -292,11 +315,14 @@
             const SUPABASE_URL = 'https://zxsslevvtbxbeivgwhow.supabase.co';
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4c3NsZXZ2dGJ4YmVpdmd3aG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwNzc1MTksImV4cCI6MjA3MzY1MzUxOX0.eMtlN3NPVR__zPGQKkCH_Na8ca2QvQMPSrDRcSIaN6k';
 
-            let supabase;
+            let supabaseClient;
             try {
-                 supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            } catch(e) {
-                console.warn("Supabase credentials not set. App will run in offline mode.");
+                // The supabase-js script creates a global 'supabase' object.
+                // We use its createClient method and store the new client instance.
+                const { createClient } = supabase;
+                supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } catch (e) {
+                console.warn("Supabase client could not be initialized. App may run in offline mode.");
             }
 
             let allProducts = [];
@@ -311,23 +337,4 @@
             const colorFilter = document.getElementById('color-filter');
             const sizeFilter = document.getElementById('size-filter');
             const priceFilter = document.getElementById('price-filter');
-            const priceValue = document.getElementById('price-value');
-            
-            const cartButton = document.getElementById('cart-button');
-            const closeCartButton = document.getElementById('close-cart-button');
-            const cartModal = document.getElementById('cart-modal');
-            const cartSidebar = document.getElementById('cart-sidebar');
-            const cartCount = document.getElementById('cart-count');
-            const cartItemsContainer = document.getElementById('cart-items');
-            const cartSubtotal = document.getElementById('cart-subtotal');
-            const checkoutBtn = document.getElementById('checkout-btn');
-
-            const toastNotification = document.getElementById('toast-notification');
-
-            const authContainer = document.getElementById('auth-container');
-            const authModal = document.getElementById('auth-modal');
-            const closeAuthModalBtn = document.getElementById('close-auth-modal');
-            const loginView = document.getElementById('login-view');
-            const signupView = document.getElementById('signup-view');
-            const loginForm = document.getElementById('login-form');
-            
+            const priceValue 
